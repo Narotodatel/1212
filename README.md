@@ -1,174 +1,376 @@
-<Page x:Class="ExpenseTrackerWPF1.Pages.AuthPage"
-      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      Background="{StaticResource BackgroundBrush}">
+CREATE DATABASE ReadWriteDB;
+GO
 
-    <Grid>
+USE ReadWriteDB;
+GO
 
-        <!-- Левая часть -->
+/* =========================
+   ТАБЛИЦА РОЛЕЙ
+========================= */
+CREATE TABLE Roles
+(
+    RoleID INT PRIMARY KEY IDENTITY(1,1),
+    RoleName NVARCHAR(50) NOT NULL UNIQUE
+);
+GO
 
-        <Grid Width="520"
-              HorizontalAlignment="Left"
-              Background="{StaticResource SidebarBrush}">
+/* =========================
+   ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ
+========================= */
+CREATE TABLE Users
+(
+    UserID INT PRIMARY KEY IDENTITY(1,1),
+    Login NVARCHAR(50) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    Email NVARCHAR(100) NOT NULL UNIQUE,
+    DisplayName NVARCHAR(100) NOT NULL,
+    RoleID INT NOT NULL,
+    IsFrozen BIT NOT NULL DEFAULT 0,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
 
-            <StackPanel VerticalAlignment="Center"
-                        Margin="60">
+    CONSTRAINT FK_Users_Roles
+        FOREIGN KEY (RoleID)
+        REFERENCES Roles(RoleID)
+);
+GO
 
-                <TextBlock Text="BookWave"
-                           FontSize="42"
-                           FontWeight="Bold"
-                           Foreground="White"/>
+/* =========================
+   ТАБЛИЦА КНИГ
+========================= */
+CREATE TABLE Books
+(
+    BookID INT PRIMARY KEY IDENTITY(1,1),
+    Title NVARCHAR(200) NOT NULL,
+    Description NVARCHAR(MAX) NULL,
+    CoverPath NVARCHAR(255) NULL,
+    Content NVARCHAR(MAX) NOT NULL,
+    AuthorID INT NOT NULL,
+    IsFrozen BIT NOT NULL DEFAULT 0,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
 
-                <TextBlock Text="Платформа для чтения и публикации книг"
-                           Margin="0 20 0 0"
-                           FontSize="18"
-                           Foreground="#CBD5E1"
-                           TextWrapping="Wrap"/>
+    CONSTRAINT FK_Books_Users
+        FOREIGN KEY (AuthorID)
+        REFERENCES Users(UserID)
+);
+GO
 
-                <Border Margin="0 40 0 0"
-                        Height="2"
-                        Background="#334155"/>
+/* =========================
+   ТАБЛИЦА ЖАНРОВ
+========================= */
+CREATE TABLE Genres
+(
+    GenreID INT PRIMARY KEY IDENTITY(1,1),
+    GenreName NVARCHAR(100) NOT NULL UNIQUE,
+    Description NVARCHAR(MAX) NULL
+);
+GO
 
-                <StackPanel Margin="0 40 0 0">
+/* =========================
+   СВЯЗЬ КНИГ И ЖАНРОВ
+========================= */
+CREATE TABLE BookGenres
+(
+    BookGenreID INT PRIMARY KEY IDENTITY(1,1),
+    BookID INT NOT NULL,
+    GenreID INT NOT NULL,
 
-                    <TextBlock Text="📚 Огромный каталог"
-                               FontSize="18"
-                               Foreground="White"
-                               Margin="0 0 0 20"/>
+    CONSTRAINT FK_BookGenres_Books
+        FOREIGN KEY (BookID)
+        REFERENCES Books(BookID),
 
-                    <TextBlock Text="⭐ Система отзывов"
-                               FontSize="18"
-                               Foreground="White"
-                               Margin="0 0 0 20"/>
+    CONSTRAINT FK_BookGenres_Genres
+        FOREIGN KEY (GenreID)
+        REFERENCES Genres(GenreID),
 
-                    <TextBlock Text="✍ Публикация книг"
-                               FontSize="18"
-                               Foreground="White"
-                               Margin="0 0 0 20"/>
+    CONSTRAINT UQ_BookGenres
+        UNIQUE (BookID, GenreID)
+);
+GO
 
-                    <TextBlock Text="🛡 Модерация контента"
-                               FontSize="18"
-                               Foreground="White"/>
+/* =========================
+   ОТЗЫВЫ
+========================= */
+CREATE TABLE Reviews
+(
+    ReviewID INT PRIMARY KEY IDENTITY(1,1),
+    UserID INT NOT NULL,
+    BookID INT NOT NULL,
+    ReviewText NVARCHAR(MAX) NOT NULL,
+    Rating INT NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
 
-                </StackPanel>
+    CONSTRAINT FK_Reviews_Users
+        FOREIGN KEY (UserID)
+        REFERENCES Users(UserID),
 
-            </StackPanel>
+    CONSTRAINT FK_Reviews_Books
+        FOREIGN KEY (BookID)
+        REFERENCES Books(BookID),
 
-        </Grid>
+    CONSTRAINT CHK_Reviews_Rating
+        CHECK (Rating BETWEEN 1 AND 10)
+);
+GO
 
-        <!-- Правая часть -->
+/* =========================
+   СПИСКИ ЧТЕНИЯ
+========================= */
+CREATE TABLE ReadingLists
+(
+    ReadingListID INT PRIMARY KEY IDENTITY(1,1),
+    UserID INT NOT NULL,
+    BookID INT NOT NULL,
+    StatusName NVARCHAR(50) NOT NULL,
+    AddedAt DATETIME NOT NULL DEFAULT GETDATE(),
 
-        <Grid Margin="520 0 0 0">
+    CONSTRAINT FK_ReadingLists_Users
+        FOREIGN KEY (UserID)
+        REFERENCES Users(UserID),
 
-            <Border Width="460"
-                    Padding="42"
-                    CornerRadius="28"
-                    Background="White"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center">
+    CONSTRAINT FK_ReadingLists_Books
+        FOREIGN KEY (BookID)
+        REFERENCES Books(BookID),
 
-                <StackPanel>
+    CONSTRAINT UQ_ReadingLists_UserBook
+        UNIQUE (UserID, BookID),
 
-                    <!-- Заголовок -->
+    CONSTRAINT CHK_ReadingLists_Status
+        CHECK (StatusName IN
+        (
+            N'Заброшено',
+            N'В планах',
+            N'Читаю',
+            N'Прочитано'
+        ))
+);
+GO
 
-                    <TextBlock Text="Добро пожаловать"
-                               FontSize="34"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource TextBrush}"/>
+/* =========================
+   ЖАЛОБЫ
+========================= */
+CREATE TABLE Complaints
+(
+    ComplaintID INT PRIMARY KEY IDENTITY(1,1),
+    UserID INT NOT NULL,
+    BookID INT NULL,
+    ReviewID INT NULL,
+    Reason NVARCHAR(MAX) NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
 
-                    <TextBlock Text="Войдите в свой аккаунт"
-                               FontSize="15"
-                               Margin="0 8 0 0"
-                               Foreground="{StaticResource MutedTextBrush}"/>
+    CONSTRAINT FK_Complaints_Users
+        FOREIGN KEY (UserID)
+        REFERENCES Users(UserID),
 
-                    <!-- Логин -->
+    CONSTRAINT FK_Complaints_Books
+        FOREIGN KEY (BookID)
+        REFERENCES Books(BookID),
 
-                    <TextBlock Text="Логин"
-                               Margin="0 34 0 10"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource TextBrush}"/>
+    CONSTRAINT FK_Complaints_Reviews
+        FOREIGN KEY (ReviewID)
+        REFERENCES Reviews(ReviewID),
 
-                    <Border CornerRadius="14"
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            Background="#F8FAFC">
+    CONSTRAINT CHK_Complaints_Target
+        CHECK
+        (
+            (BookID IS NOT NULL AND ReviewID IS NULL)
+            OR
+            (BookID IS NULL AND ReviewID IS NOT NULL)
+        )
+);
+GO
 
-                        <TextBox Height="46"
-                                 BorderThickness="0"
-                                 Background="Transparent"
-                                 Padding="14 0"/>
+/* =========================
+   ЗАЯВКИ НА РОЛЬ АВТОРА
+========================= */
+CREATE TABLE RoleRequests
+(
+    RequestID INT PRIMARY KEY IDENTITY(1,1),
+    UserID INT NOT NULL,
+    RequestText NVARCHAR(MAX) NULL,
+    StatusName NVARCHAR(50) NOT NULL DEFAULT N'На рассмотрении',
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
 
-                    </Border>
+    CONSTRAINT FK_RoleRequests_Users
+        FOREIGN KEY (UserID)
+        REFERENCES Users(UserID)
+);
+GO
 
-                    <!-- Пароль -->
+/* =========================
+   ЗАЯВКИ НА РАЗМОРОЗКУ
+========================= */
+CREATE TABLE UnfreezeRequests
+(
+    UnfreezeRequestID INT PRIMARY KEY IDENTITY(1,1),
+    UserID INT NULL,
+    BookID INT NULL,
+    RequestReason NVARCHAR(MAX) NOT NULL,
+    StatusName NVARCHAR(50) NOT NULL DEFAULT N'На рассмотрении',
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
 
-                    <TextBlock Text="Пароль"
-                               Margin="0 22 0 10"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource TextBrush}"/>
+    CONSTRAINT FK_UnfreezeRequests_Users
+        FOREIGN KEY (UserID)
+        REFERENCES Users(UserID),
 
-                    <Border CornerRadius="14"
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            Background="#F8FAFC">
+    CONSTRAINT FK_UnfreezeRequests_Books
+        FOREIGN KEY (BookID)
+        REFERENCES Books(BookID),
 
-                        <PasswordBox Height="46"
-                                     BorderThickness="0"
-                                     Background="Transparent"
-                                     Padding="14 0"/>
+    CONSTRAINT CHK_UnfreezeRequests_Target
+        CHECK
+        (
+            (UserID IS NOT NULL AND BookID IS NULL)
+            OR
+            (UserID IS NULL AND BookID IS NOT NULL)
+        )
+);
+GO
 
-                    </Border>
+/* =========================
+   ТЕСТОВЫЕ ДАННЫЕ
+========================= */
 
-                    <!-- Кнопка -->
+/* Роли */
+INSERT INTO Roles (RoleName)
+VALUES
+(N'Читатель'),
+(N'Автор'),
+(N'Администратор');
+GO
 
-                    <Button Height="52"
-                            Margin="0 34 0 0"
-                            FontSize="16"
-                            Content="Войти"/>
+/* Пользователи */
+INSERT INTO Users
+(
+    Login,
+    PasswordHash,
+    Email,
+    DisplayName,
+    RoleID,
+    IsFrozen
+)
+VALUES
+(N'ivanov', N'12345', N'ivan@mail.com', N'Иван Иванов', 2, 0),
+(N'petrov', N'12345', N'petrov@mail.com', N'Петр Петров', 1, 0),
+(N'admin', N'admin123', N'admin@mail.com', N'Администратор', 3, 0),
+(N'sidorov', N'12345', N'sid@mail.com', N'Сидоров', 2, 0),
+(N'anna', N'12345', N'anna@mail.com', N'Анна', 1, 0);
+GO
 
-                    <!-- Разделитель -->
+/* Жанры */
+INSERT INTO Genres (GenreName, Description)
+VALUES
+(N'Фэнтези', N'Магия и приключения'),
+(N'Детектив', N'Расследования'),
+(N'Фантастика', N'Будущее и технологии'),
+(N'Роман', N'Любовные истории'),
+(N'Ужасы', N'Страшные истории');
+GO
 
-                    <Grid Margin="0 30 0 0">
+/* Книги */
+INSERT INTO Books
+(
+    Title,
+    Description,
+    CoverPath,
+    Content,
+    AuthorID,
+    IsFrozen
+)
+VALUES
+(
+    N'Тень дракона',
+    N'Фэнтезийная история',
+    N'/covers/book1.jpg',
+    N'Текст книги 1',
+    1,
+    0
+),
+(
+    N'Космос будущего',
+    N'Научная фантастика',
+    N'/covers/book2.jpg',
+    N'Текст книги 2',
+    4,
+    0
+),
+(
+    N'Тайна старого дома',
+    N'Детективный роман',
+    N'/covers/book3.jpg',
+    N'Текст книги 3',
+    1,
+    0
+);
+GO
 
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+/* Связь книг и жанров */
+INSERT INTO BookGenres (BookID, GenreID)
+VALUES
+(1,1),
+(2,3),
+(3,2);
+GO
 
-                        <Border Height="1"
-                                Background="{StaticResource BorderBrush}"
-                                VerticalAlignment="Center"/>
+/* Отзывы */
+INSERT INTO Reviews
+(
+    UserID,
+    BookID,
+    ReviewText,
+    Rating
+)
+VALUES
+(2,1,N'Очень интересная книга!',9),
+(5,1,N'Понравилось!',10),
+(2,2,N'Неплохая фантастика',8),
+(5,3,N'Хороший детектив',7);
+GO
 
-                        <TextBlock Grid.Column="1"
-                                   Text="или"
-                                   Margin="16 0"
-                                   Foreground="{StaticResource MutedTextBrush}"/>
+/* Списки чтения */
+INSERT INTO ReadingLists
+(
+    UserID,
+    BookID,
+    StatusName
+)
+VALUES
+(2,1,N'Читаю'),
+(2,2,N'В планах'),
+(5,1,N'Прочитано');
+GO
 
-                        <Border Grid.Column="2"
-                                Height="1"
-                                Background="{StaticResource BorderBrush}"
-                                VerticalAlignment="Center"/>
+/* Жалобы */
+INSERT INTO Complaints
+(
+    UserID,
+    BookID,
+    ReviewID,
+    Reason
+)
+VALUES
+(2,1,NULL,N'Нарушение правил'),
+(5,NULL,1,N'Оскорбительный отзыв');
+GO
 
-                    </Grid>
+/* Заявки на роль */
+INSERT INTO RoleRequests
+(
+    UserID,
+    RequestText
+)
+VALUES
+(2,N'Хочу стать автором'),
+(5,N'Пишу книги');
+GO
 
-                    <!-- Регистрация -->
-
-                    <Button Height="52"
-                            Margin="0 30 0 0"
-                            Background="#EEF2FF"
-                            Foreground="#6366F1"
-                            FontSize="16"
-                            Content="Создать аккаунт"/>
-
-                </StackPanel>
-
-            </Border>
-
-        </Grid>
-
-    </Grid>
-
-</Page>
+/* Заявки на разморозку */
+INSERT INTO UnfreezeRequests
+(
+    UserID,
+    BookID,
+    RequestReason
+)
+VALUES
+(1,NULL,N'Прошу разморозить аккаунт'),
+(NULL,2,N'Прошу разморозить книгу');
+GO
