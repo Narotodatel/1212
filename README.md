@@ -127,3 +127,20 @@ RequestDate DATETIME NOT NULL DEFAULT GETDATE(),
 
 -- Индексы (по требованию — только автоматические, но для производительности на внешних ключах они создаются автоматически)
 -- Тем не менее, можно добавить явно, если нужно, но в задании сказано "кроме автоматических для первичных и внешних ключей" — значит, не требуется.
+
+
+
+USE BookPlatform;
+GO
+
+UPDATE Books
+SET CoverImagePath = 'Images/Covers/mansion.jpg'
+WHERE Title = N'Тайна старого особняка';
+
+UPDATE Books
+SET CoverImagePath = 'Images/Covers/stars.jpg'
+WHERE Title = N'Звездные скитальцы';
+
+UPDATE Books
+SET CoverImagePath = 'Images/Covers/letter.jpg'
+WHERE Title = N'Забытое письмо';
